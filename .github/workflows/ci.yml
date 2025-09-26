@@ -2,301 +2,301 @@ name: DeepSeek Chat Exporter Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run ESLint
-      run: npm run lint
-      
-    - name: Run linting fix check
-      run: npm run lint:fix
-      
-    - name: Check for uncommitted changes
-      run: |
-        if [ -n "$(git status --porcelain)" ]; then
-          echo "❌ Linting created changes that need to be committed"
-          git status
-          exit 1
-        else
-          echo "✅ No linting changes needed"
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run linting fix check
+        run: npm run lint:fix
+
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "❌ Linting created changes that need to be committed"
+            git status
+            exit 1
+          else
+            echo "✅ No linting changes needed"
+          fi
 
   test:
     name: Run Tests
     runs-on: ubuntu-latest
     needs: lint
-    
+
     strategy:
       matrix:
         node-version: [16.x, 18.x, 20.x]
-        
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run unit tests
-      run: npm run test:unit
-      
-    - name: Run integration tests
-      run: npm run test:integration
-      
-    - name: Run all tests
-      run: npm test
-      
-    - name: Upload test coverage
-      if: matrix.node-version == '18.x'
-      uses: actions/upload-artifact@v3
-      with:
-        name: test-results
-        path: test-results/
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run all tests
+        run: npm test
+
+      - name: Upload test coverage
+        if: matrix.node-version == '18.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
 
   validate:
     name: Validate Extension
     runs-on: ubuntu-latest
     needs: [lint, test]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Validate browser extension
-      run: npm run validate
-      
-    - name: Check manifest.json
-      run: |
-        echo "🔍 Validating extension manifest..."
-        if [ -f "extension/manifest.json" ]; then
-          echo "✅ manifest.json found"
-          node -e "
-            const manifest = require('./extension/manifest.json');
-            console.log('📋 Manifest Version:', manifest.manifest_version);
-            console.log('📋 Extension Name:', manifest.name);
-            console.log('📋 Extension Version:', manifest.version);
-            console.log('📋 Permissions:', manifest.permissions);
-            console.log('📋 Host Permissions:', manifest.host_permissions);
-            
-            if (manifest.manifest_version !== 3) {
-              console.error('❌ Manifest version must be 3');
-              process.exit(1);
-            }
-            if (!manifest.name || !manifest.version) {
-              console.error('❌ Manifest must include name and version');
-              process.exit(1);
-            }
-            console.log('✅ Manifest validation passed');
-          "
-        else
-          echo "❌ manifest.json not found"
-          exit 1
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate browser extension
+        run: npm run validate
+
+      - name: Check manifest.json
+        run: |
+          echo "🔍 Validating extension manifest..."
+          if [ -f "extension/manifest.json" ]; then
+            echo "✅ manifest.json found"
+            node -e "
+              const manifest = require('./extension/manifest.json');
+              console.log('📋 Manifest Version:', manifest.manifest_version);
+              console.log('📋 Extension Name:', manifest.name);
+              console.log('📋 Extension Version:', manifest.version);
+              console.log('📋 Permissions:', manifest.permissions);
+              console.log('📋 Host Permissions:', manifest.host_permissions);
+              
+              if (manifest.manifest_version !== 3) {
+                console.error('❌ Manifest version must be 3');
+                process.exit(1);
+              }
+              if (!manifest.name || !manifest.version) {
+                console.error('❌ Manifest must include name and version');
+                process.exit(1);
+              }
+              console.log('✅ Manifest validation passed');
+            "
+          else
+            echo "❌ manifest.json not found"
+            exit 1
+          fi
 
   security:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: [lint, test]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run npm audit
-      run: npm audit --audit-level moderate
-      
-    - name: Check for security vulnerabilities
-      run: |
-        echo "🔒 Running security checks..."
-        if npm audit --audit-level moderate; then
-          echo "✅ No security vulnerabilities found"
-        else
-          echo "⚠️  Security vulnerabilities found - review audit output"
-          npm audit
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level moderate
+
+      - name: Check for security vulnerabilities
+        run: |
+          echo "🔒 Running security checks..."
+          if npm audit --audit-level moderate; then
+            echo "✅ No security vulnerabilities found"
+          else
+            echo "⚠️  Security vulnerabilities found - review audit output"
+            npm audit
+          fi
 
   build:
     name: Build Extension
     runs-on: ubuntu-latest
     needs: [lint, test, validate, security]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Create extension package
-      run: |
-        echo "📦 Creating extension package..."
-        mkdir -p dist
-        cp -r extension/* dist/
-        cp README.md dist/
-        cp LICENSE dist/
-        
-        # Create zip file for Chrome extension
-        cd dist
-        zip -r ../deepseek-chat-exporter.zip .
-        cd ..
-        
-        echo "✅ Extension package created"
-        
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: extension-build
-        path: |
-          deepseek-chat-exporter.zip
-          dist/
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create extension package
+        run: |
+          echo "📦 Creating extension package..."
+          mkdir -p dist
+          cp -r extension/* dist/
+          cp README.md dist/
+          cp LICENSE dist/
+
+          # Create zip file for Chrome extension
+          cd dist
+          zip -r ../deepseek-chat-exporter.zip .
+          cd ..
+
+          echo "✅ Extension package created"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: |
+            deepseek-chat-exporter.zip
+            dist/
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [build]
     if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'chore(release):')
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Download build artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: extension-build
-        path: artifacts/
-        
-    - name: Extract version from package.json
-      id: version
-      run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-      
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ steps.version.outputs.VERSION }}
-        name: Release v${{ steps.version.outputs.VERSION }}
-        body: |
-          ### Files
-          - `deepseek-chat-exporter.zip` - Chrome extension package
-          
-          ---
-          
-          **Note:** This release was automatically generated by CI/CD pipeline.
-        files: |
-          artifacts/deepseek-chat-exporter.zip
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-build
+          path: artifacts/
+
+      - name: Extract version from package.json
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Release v${{ steps.version.outputs.VERSION }}
+          body: |
+            ### Files
+            - `deepseek-chat-exporter.zip` - Chrome extension package
+
+            ---
+
+            **Note:** This release was automatically generated by CI/CD pipeline.
+          files: |
+            artifacts/deepseek-chat-exporter.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     name: Deploy Documentation
     runs-on: ubuntu-latest
     needs: [build]
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Deploy to GitHub Pages
-      if: false # Set to true when you have GitHub Pages enabled
-      run: |
-        echo "📄 Deploying documentation to GitHub Pages..."
-        # Add your documentation deployment logic here
-        echo "✅ Documentation deployed"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to GitHub Pages
+        if: false # Set to true when you have GitHub Pages enabled
+        run: |
+          echo "📄 Deploying documentation to GitHub Pages..."
+          # Add your documentation deployment logic here
+          echo "✅ Documentation deployed"
 
   notification:
     name: Send Notifications
     runs-on: ubuntu-latest
     needs: [lint, test, validate, security]
     if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Send success notification
-      if: needs.lint.result == 'success' && needs.test.result == 'success' && needs.validate.result == 'success' && needs.security.result == 'success'
-      run: |
-        echo "✅ All CI/CD checks passed!"
-        echo "🎉 Pipeline completed successfully"
-        
-    - name: Send failure notification
-      if: needs.lint.result == 'failure' || needs.test.result == 'failure' || needs.validate.result == 'failure' || needs.security.result == 'failure'
-      run: |
-        echo "❌ CI/CD pipeline failed!"
-        echo "🔧 Please check the failed jobs above"
-        exit 1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Send success notification
+        if: needs.lint.result == 'success' && needs.test.result == 'success' && needs.validate.result == 'success' && needs.security.result == 'success'
+        run: |
+          echo "✅ All CI/CD checks passed!"
+          echo "🎉 Pipeline completed successfully"
+
+      - name: Send failure notification
+        if: needs.lint.result == 'failure' || needs.test.result == 'failure' || needs.validate.result == 'failure' || needs.security.result == 'failure'
+        run: |
+          echo "❌ CI/CD pipeline failed!"
+          echo "🔧 Please check the failed jobs above"
+          exit 1
