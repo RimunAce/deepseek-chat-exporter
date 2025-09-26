@@ -240,6 +240,14 @@ global.window = {
   }
 };
 
+// Mock CustomEvent for Node.js environment
+global.CustomEvent = function(type, options = {}) {
+  this.type = type;
+  this.detail = options.detail || null;
+  this.bubbles = options.bubbles || false;
+  this.cancelable = options.cancelable || false;
+};
+
 global.jsPDF = jsPDFConstructorMock; // Keep for direct sandbox access if needed
 
 const pdfExporterCode = fs.readFileSync("extension/pdf-exporter.js", "utf8");
