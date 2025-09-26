@@ -1,0 +1,180 @@
+/* DeepSeek Chat Exporter Styles */
+.deepseek-export-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+  z-index: 10 !important;
+  outline: none !important;
+}
+
+.deepseek-export-button:hover {
+  background-color: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.04)) !important;
+  transform: scale(1.05) !important;
+}
+
+.deepseek-export-button:active {
+  transform: scale(0.95) !important;
+}
+
+.deepseek-export-button ._001e3bb {
+  position: absolute !important;
+  inset: 0px !important;
+  border-radius: 50% !important;
+  background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.04)) !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.deepseek-export-button:hover ._001e3bb {
+  opacity: 1 !important;
+}
+
+.deepseek-export-button .ds-icon {
+  color: var(--dsw-alias-label-primary, #333) !important;
+  z-index: 2 !important;
+  position: relative !important;
+}
+
+.deepseek-export-button .ds-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+  fill: currentColor !important;
+}
+
+.deepseek-export-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.deepseek-export-modal-content {
+  background: var(--dsw-alias-bg-primary, #fff);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  color: var(--dsw-alias-text-primary, #000);
+}
+
+.deepseek-export-modal h2 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dsw-alias-text-primary, #000);
+}
+
+.deepseek-export-options {
+  margin-bottom: 24px;
+}
+
+.deepseek-export-section {
+  margin-bottom: 20px;
+}
+
+.deepseek-export-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dsw-alias-text-primary, #000);
+}
+
+.deepseek-export-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.deepseek-export-radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deepseek-export-radio-item input[type="radio"] {
+  width: 16px;
+  height: 16px;
+}
+
+.deepseek-export-radio-item label {
+  font-size: 14px;
+  color: var(--dsw-alias-text-secondary, #666);
+  cursor: pointer;
+}
+
+.deepseek-export-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.deepseek-export-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.deepseek-export-checkbox label {
+  font-size: 14px;
+  color: var(--dsw-alias-text-secondary, #666);
+  cursor: pointer;
+}
+
+.deepseek-export-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.deepseek-export-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--dsw-alias-border-primary, #ddd);
+  background: var(--dsw-alias-bg-secondary, #f5f5f5);
+  color: var(--dsw-alias-text-primary, #000);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.deepseek-export-btn:hover {
+  background: var(--dsw-alias-bg-tertiary, #eee);
+}
+
+.deepseek-export-btn.primary {
+  background: var(--dsw-alias-primary, #4f46e5);
+  color: white;
+  border-color: var(--dsw-alias-primary, #4f46e5);
+}
+
+.deepseek-export-btn.primary:hover {
+  background: var(--dsw-alias-primary-hover, #3730a3);
+}
+
+.deepseek-export-progress {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--dsw-alias-bg-tertiary, #f9f9f9);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--dsw-alias-text-secondary, #666);
+  display: none;
+}
+
+.deepseek-export-progress.show {
+  display: block;
+}

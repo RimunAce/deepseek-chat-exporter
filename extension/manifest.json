@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "DeepSeek Chat Exporter",
+  "version": "1.0.0",
+  "description": "Export DeepSeek chat conversations",
+  "permissions": ["activeTab", "downloads"],
+  "host_permissions": ["https://chat.deepseek.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["markdown-utils.js", "content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["pdf-exporter.js", "vendor/jspdf.umd.min.js", "icons/*"],
+      "matches": ["https://chat.deepseek.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DeepSeek Chat Exporter"
+  }
+}
