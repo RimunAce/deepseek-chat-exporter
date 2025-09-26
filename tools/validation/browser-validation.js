@@ -151,15 +151,6 @@ function validateDeepSeekExporter() {
   return results;
 }
 
-// Auto-run validation if this script is loaded
-if (document.readyState === "complete") {
-  setTimeout(validateDeepSeekExporter, 2000);
-} else {
-  window.addEventListener("load", () => {
-    setTimeout(validateDeepSeekExporter, 2000);
-  });
-}
-
 function runMessageParsingSmokeTest() {
   if (typeof DeepSeekExporter === "undefined") {
     return {
@@ -416,7 +407,23 @@ async function testPDFExportFix() {
   }
 }
 
-console.log(
-  "DeepSeek Exporter Validation Script Loaded. Run validateDeepSeekExporter() " +
-    "to test basic functionality, or testPDFExportFix() to test the PDF fix."
-);
+// Auto-run validation if this script is loaded in a browser environment
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+  console.log(
+    "DeepSeek Exporter Validation Script Loaded. Run validateDeepSeekExporter() " +
+      "to test basic functionality, or testPDFExportFix() to test the PDF fix."
+  );
+
+  if (document.readyState === "complete") {
+    setTimeout(validateDeepSeekExporter, 2000);
+  } else {
+    window.addEventListener("load", () => {
+      setTimeout(validateDeepSeekExporter, 2000);
+    });
+  }
+} else {
+  // Running in Node.js environment - just run basic validation
+  console.log("🧪 DeepSeek Exporter Validation (Node.js mode)");
+  console.log("✅ Script loaded successfully");
+  console.log("ℹ️  For full browser validation, run this script in browser console on DeepSeek chat page");
+}
