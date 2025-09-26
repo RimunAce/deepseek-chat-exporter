@@ -2,14 +2,14 @@
  * PDF Export bridge injected into the DeepSeek page context.
  */
 
-(function () {
+(function() {
   const STATUS_ATTR = "data-deepseek-pdf-exporter-ready";
   const EVENTS = {
     READY: "deepseek-exporter:ready",
     LOAD_ERROR: "deepseek-exporter:load-error",
     REQUEST: "deepseek-exporter:generate-pdf",
     SUCCESS: "deepseek-exporter:pdf-success",
-    ERROR: "deepseek-exporter:pdf-error",
+    ERROR: "deepseek-exporter:pdf-error"
   };
 
   const CURRENT_SCRIPT_SRC = (() => {
@@ -18,7 +18,7 @@
     }
 
     const injectedScript = document.querySelector(
-      'script[data-deepseek-pdf-exporter="true"]'
+      "script[data-deepseek-pdf-exporter=\"true\"]"
     );
 
     return injectedScript && injectedScript.src ? injectedScript.src : null;
@@ -79,7 +79,6 @@
       jsPDFLoadingPromise = new Promise((resolve, reject) => {
         try {
           resolve(resolveJsPDFConstructor());
-          return;
         } catch (initialError) {
           if (!LOCAL_JSPDF_URL) {
             reject(
@@ -91,7 +90,7 @@
           }
 
           let script = document.querySelector(
-            'script[data-deepseek-jspdf="true"]'
+            "script[data-deepseek-jspdf=\"true\"]"
           );
 
           if (script && script.src !== LOCAL_JSPDF_URL) {
@@ -149,7 +148,7 @@
       bottomMargin = 20,
       lineHeightFactor = 1.5,
       beforeSpacing = 0,
-      afterSpacing = 0,
+      afterSpacing = 0
     } = options;
 
     doc.setFontSize(fontSize);
@@ -157,8 +156,8 @@
     const normalizedSegments = Array.isArray(text)
       ? text
       : String(text ?? "")
-          .replace(/\r\n?/g, "\n")
-          .split("\n");
+        .replace(/\r\n?/g, "\n")
+        .split("\n");
 
     const textMetrics = doc.getTextDimensions("M");
     const computedLineHeight =
@@ -200,13 +199,25 @@
     return cursorY;
   };
 
+  // Module-level constant for control characters regex
+  const CONTROL_CHARS = (() => {
+    const chars = [];
+    for (let i = 0; i <= 8; i++) chars.push(String.fromCharCode(i));
+    chars.push(String.fromCharCode(11));
+    chars.push(String.fromCharCode(12));
+    for (let i = 14; i <= 31; i++) chars.push(String.fromCharCode(i));
+    for (let i = 127; i <= 159; i++) chars.push(String.fromCharCode(i));
+    return chars.join("");
+  })();
+  const CONTROL_CHARS_REGEX = new RegExp(`[${CONTROL_CHARS}]`, "g");
+
   const cleanTextForPDF = (text) => {
     if (!text) return "";
 
     return text
       .replace(/\r\n?/g, "\n")
       .replace(/[^\S\n]+/g, " ")
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
+      .replace(CONTROL_CHARS_REGEX, "")
       .replace(/\u00A0/g, " ")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
@@ -252,7 +263,7 @@
     return "";
   };
 
-  const generatePDFDocument = async (chatData) => {
+  const generatePDFDocument = async(chatData) => {
     const JsPDF = await ensureJsPDF();
     const doc = new JsPDF();
 
@@ -339,7 +350,7 @@
         11,
         {
           align: "justify",
-          lineHeightFactor: 1.55,
+          lineHeightFactor: 1.55
         }
       );
 
@@ -383,11 +394,11 @@
     const isUser = message.type === "user";
     doc.setTextColor(isUser ? 41 : 235, isUser ? 98 : 87, isUser ? 255 : 87);
     const authorLabel =
-      (message.author && message.author.trim().length > 0
+      `${message.author && message.author.trim().length > 0
         ? message.author
         : isUser
-        ? "User"
-        : "DeepSeek AI") + ` (${formatTimestamp(message.timestamp)})`;
+          ? "User"
+          : "DeepSeek AI"} (${formatTimestamp(message.timestamp)})`;
 
     currentY = addWrappedText(
       doc,
@@ -397,7 +408,7 @@
       contentWidth,
       13,
       {
-        lineHeightFactor: 1.3,
+        lineHeightFactor: 1.3
       }
     );
 
@@ -455,7 +466,7 @@
     doc.setTextColor(80, 80, 80);
     const labelY = currentY + padding + lineHeight;
     doc.text("Thinking Process:", margin + 8, labelY, {
-      maxWidth: contentWidth - 20,
+      maxWidth: contentWidth - 20
     });
 
     doc.setFont(undefined, "italic");
@@ -469,7 +480,7 @@
           : "left";
       doc.text(line, margin + 8, textY, {
         maxWidth: contentWidth - 20,
-        align,
+        align
       });
       textY += lineHeight;
     });
@@ -508,7 +519,7 @@
       /^(\d+)\.\s+(.*)$/gm,
       (_, index, value) => `${index}. ${value}`
     );
-    processed = processed.replace(/^>\s+(.*)$/gm, '"$1"');
+    processed = processed.replace(/^>\s+(.*)$/gm, "\"$1\"");
     processed = processed.replace(/^[-*_]{3,}\s*$/gm, "");
 
     return processed.replace(/\n{3,}/g, "\n\n").trim();
@@ -536,17 +547,17 @@
 
       doc.setTextColor(41, 98, 255);
       doc.textWithLink(linkText, linkX, footerY, {
-        url: "https://github.com/RimunAce/Deepseek-Chat-Exporter",
+        url: "https://github.com/RimunAce/Deepseek-Chat-Exporter"
       });
 
       doc.setTextColor(150, 150, 150);
       doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, footerY, {
-        align: "right",
+        align: "right"
       });
     }
   };
 
-  const handleGenerationRequest = async (event) => {
+  const handleGenerationRequest = async(event) => {
     const detail = event.detail || {};
     const { id, data } = detail;
 
@@ -566,7 +577,7 @@
     }
   };
 
-  const initialize = async () => {
+  const initialize = async() => {
     try {
       setStatus("loading");
       await ensureJsPDF();

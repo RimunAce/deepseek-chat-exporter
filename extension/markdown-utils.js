@@ -1,10 +1,10 @@
-(function (root, factory) {
+(function(root, factory) {
   if (typeof module === "object" && module.exports) {
     module.exports = factory();
   } else {
     root.DeepSeekMarkdown = factory();
   }
-})(typeof self !== "undefined" ? self : this, function () {
+})(typeof self !== "undefined" ? self : this, () => {
   const ELEMENT_NODE = typeof Node !== "undefined" ? Node.ELEMENT_NODE : 1;
   const TEXT_NODE = typeof Node !== "undefined" ? Node.TEXT_NODE : 3;
 
@@ -58,10 +58,13 @@
   };
 
   const isInsidePreformatted = (node) => {
-    if (!node || !node.parentElement || !node.parentElement.tagName) {
-      return false;
-    }
-    return node.parentElement.tagName.toLowerCase() === "pre";
+    if (!node) return false;
+    const parentElement = node.parentElement;
+    if (!parentElement) return false;
+    const parentTagName = parentElement.tagName;
+    if (!parentTagName) return false;
+
+    return parentTagName.toLowerCase() === "pre";
   };
 
   const handleCode = (node) => {
@@ -77,19 +80,17 @@
     const cleaned = text.replace(/\r\n?/g, "\n").replace(/\n+$/g, "\n");
     const body = cleaned.trimEnd();
     return body
-      ? `\n\n\*\*\*CODE_BLOCK_START\*\*\*\n${body}\n\*\*\*CODE_BLOCK_END\*\*\*\n\n`
+      ? `\n\n***CODE_BLOCK_START***\n${body}\n***CODE_BLOCK_END***\n\n`
       : "";
   };
 
   const handleBlockquote = (node, context) => {
     const inner = convertChildren(node, context).trim();
     if (!inner) return "";
-    return (
-      inner
-        .split(/\n+/)
-        .map((line) => `> ${line}`)
-        .join("\n") + "\n\n"
-    );
+    return `${inner
+      .split(/\n+/)
+      .map((line) => `> ${line}`)
+      .join("\n")}\n\n`;
   };
 
   const handleListItem = (node, context) => {
@@ -161,7 +162,7 @@
     ul: (node, context) => appendList(node, context, "ul"),
     ol: (node, context) => appendList(node, context, "ol"),
     li: handleListItem,
-    pre: handlePre,
+    pre: handlePre
   };
 
   const inlineHandlers = {
@@ -177,7 +178,7 @@
     small: handleInlineWrapper,
     label: handleInlineWrapper,
     hr: () => "\n\n---\n\n",
-    img: handleImage,
+    img: handleImage
   };
 
   const convertNode = (node, context) => {
@@ -239,7 +240,7 @@
 
   const api = {
     elementToMarkdown,
-    htmlToMarkdown,
+    htmlToMarkdown
   };
 
   if (typeof window !== "undefined") {

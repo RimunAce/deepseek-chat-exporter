@@ -1,8 +1,10 @@
-/* eslint-disable complexity, max-lines, max-statements, sonarjs/cognitive-complexity */
 /**
  * DeepSeek Exporter Test Validation
  * Run this in the browser console on DeepSeek chat page to test functionality
  */
+
+/* global chrome, DeepSeekExporter */
+/* eslint-disable no-console */
 
 function validateDeepSeekExporter() {
   console.log("🧪 DeepSeek Exporter Validation Starting...");
@@ -14,7 +16,7 @@ function validateDeepSeekExporter() {
     dataExtraction: false,
     exportCapabilities: false,
     messageParsing: null,
-    errors: [],
+    errors: []
   };
 
   try {
@@ -59,7 +61,7 @@ function validateDeepSeekExporter() {
 
     // Test 4: Check data extraction capabilities
     const messageElements = document.querySelectorAll(
-      '.ds-message, [class*="message"], div'
+      ".ds-message, [class*=\"message\"], div"
     );
     const textContent = Array.from(messageElements)
       .map((el) => el.textContent.trim())
@@ -112,8 +114,8 @@ function validateDeepSeekExporter() {
     results.messageParsing === true
       ? "✅"
       : results.messageParsing === null
-      ? "⚠️"
-      : "❌";
+        ? "⚠️"
+        : "❌";
   console.log("Message Parsing:", parsingStatus);
   console.log("Export APIs:", results.exportCapabilities ? "✅" : "❌");
 
@@ -128,7 +130,7 @@ function validateDeepSeekExporter() {
     results.modalWorks,
     results.dataExtraction,
     results.messageParsing,
-    results.exportCapabilities,
+    results.exportCapabilities
   ].filter((v) => typeof v === "boolean");
 
   const passedTests = booleanResults.filter((v) => v === true).length;
@@ -162,7 +164,7 @@ function runMessageParsingSmokeTest() {
   if (typeof DeepSeekExporter === "undefined") {
     return {
       passed: false,
-      error: "DeepSeekExporter class is not available in the page context",
+      error: "DeepSeekExporter class is not available in the page context"
     };
   }
 
@@ -184,7 +186,7 @@ function runMessageParsingSmokeTest() {
   if (allMessages.length === 0) {
     return {
       passed: false,
-      error: "No chat message elements found for parsing validation",
+      error: "No chat message elements found for parsing validation"
     };
   }
 
@@ -196,7 +198,7 @@ function runMessageParsingSmokeTest() {
     return {
       passed: false,
       warning:
-        "No assistant messages with thinking content present; skipping parsing verification",
+        "No assistant messages with thinking content present; skipping parsing verification"
     };
   }
 
@@ -204,7 +206,7 @@ function runMessageParsingSmokeTest() {
   if (!parsedAssistant || parsedAssistant.error) {
     return {
       passed: false,
-      error: "Failed to parse assistant message with thinking content",
+      error: "Failed to parse assistant message with thinking content"
     };
   }
 
@@ -218,7 +220,7 @@ function runMessageParsingSmokeTest() {
     return {
       passed: false,
       error:
-        "Assistant message parsing did not separate thinking content correctly",
+        "Assistant message parsing did not separate thinking content correctly"
     };
   }
 
@@ -231,7 +233,7 @@ function runMessageParsingSmokeTest() {
   if (!probableUserMessage) {
     return {
       passed: false,
-      warning: "No clear user message detected; skipping role verification",
+      warning: "No clear user message detected; skipping role verification"
     };
   }
 
@@ -239,14 +241,14 @@ function runMessageParsingSmokeTest() {
   if (!parsedUser || parsedUser.error) {
     return {
       passed: false,
-      error: "Failed to parse user message for role detection",
+      error: "Failed to parse user message for role detection"
     };
   }
 
   if (parsedUser.type !== "user") {
     return {
       passed: false,
-      error: "User message was not classified with type 'user'",
+      error: "User message was not classified with type 'user'"
     };
   }
 
@@ -256,6 +258,7 @@ function runMessageParsingSmokeTest() {
 /**
  * Test function to validate PDF export functionality fixes
  */
+// eslint-disable-next-line no-unused-vars
 async function testPDFExportFix() {
   console.log("🔧 Testing PDF export fix...");
 
@@ -267,7 +270,7 @@ async function testPDFExportFix() {
     if (readyAttr !== "true") {
       console.log("Injecting PDF exporter bridge script for testing...");
       const existingScript = document.querySelector(
-        'script[data-deepseek-pdf-exporter="true"]'
+        "script[data-deepseek-pdf-exporter=\"true\"]"
       );
 
       if (!existingScript) {
@@ -315,11 +318,11 @@ async function testPDFExportFix() {
 
         window.addEventListener("deepseek-exporter:ready", onReady, {
           once: true,
-          capture: true,
+          capture: true
         });
         window.addEventListener("deepseek-exporter:load-error", onError, {
           once: true,
-          capture: true,
+          capture: true
         });
       });
     } else {
@@ -365,16 +368,16 @@ async function testPDFExportFix() {
       };
 
       window.addEventListener("deepseek-exporter:pdf-success", onSuccess, {
-        capture: true,
+        capture: true
       });
       window.addEventListener("deepseek-exporter:pdf-error", onError, {
-        capture: true,
+        capture: true
       });
 
       const sampleData = {
         metadata: {
           exportDate: new Date().toISOString(),
-          chatId: "test",
+          chatId: "test"
         },
         messages: [
           {
@@ -382,7 +385,7 @@ async function testPDFExportFix() {
             type: "user",
             content: "Hello, can you summarize our conversation?",
             timestamp: new Date().toISOString(),
-            hasThinking: false,
+            hasThinking: false
           },
           {
             id: "sample-ai",
@@ -391,14 +394,14 @@ async function testPDFExportFix() {
             timestamp: new Date().toISOString(),
             hasThinking: true,
             thinkingContent:
-              "Analyzing the conversation and extracting the main points...",
-          },
-        ],
+              "Analyzing the conversation and extracting the main points..."
+          }
+        ]
       };
 
       window.dispatchEvent(
         new CustomEvent("deepseek-exporter:generate-pdf", {
-          detail: { id: requestId, data: sampleData },
+          detail: { id: requestId, data: sampleData }
         })
       );
     });
@@ -414,5 +417,6 @@ async function testPDFExportFix() {
 }
 
 console.log(
-  "DeepSeek Exporter Validation Script Loaded. Run validateDeepSeekExporter() to test basic functionality, or testPDFExportFix() to test the PDF fix."
+  "DeepSeek Exporter Validation Script Loaded. Run validateDeepSeekExporter() " +
+    "to test basic functionality, or testPDFExportFix() to test the PDF fix."
 );

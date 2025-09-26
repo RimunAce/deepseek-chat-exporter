@@ -14,7 +14,7 @@ const createTextNode = (text) => ({
   childNodes: [],
   querySelectorAll() {
     return [];
-  },
+  }
 });
 
 const createElementNode = (tag, children = [], attributes = {}) => {
@@ -25,7 +25,7 @@ const createElementNode = (tag, children = [], attributes = {}) => {
     parentElement: null,
     attributes: Object.entries(attributes).map(([name, value]) => ({
       name,
-      value,
+      value
     })),
     getAttribute(name) {
       const attr = this.attributes.find((item) => item.name === name);
@@ -51,7 +51,7 @@ const createElementNode = (tag, children = [], attributes = {}) => {
 
       visit(node);
       return matches;
-    },
+    }
   };
 
   node.childNodes = children.map((child) => {
@@ -75,11 +75,13 @@ const assignParents = (node, parent = null) => {
 const headingSample = createElementNode("div", [
   createElementNode("h2", ["Chapter 2: Ghosts and Gears"]),
   createElementNode("p", [
-    "The return journey felt longer than the outward trek. The silence within the trio was heavier, charged with the lingering echo of crystalline claws and the spectral imprint on 850W's thermal sensors.",
+    "The return journey felt longer than the outward trek. The silence within the trio was heavier, " +
+    "charged with the lingering echo of crystalline claws and the spectral imprint on 850W's thermal sensors."
   ]),
   createElementNode("p", [
-    "The airlock cycle this time was a ritual of decontamination. Jets of pressurized solvent hissed over their chassis, scouring away radioactive dust and crystalline shards.",
-  ]),
+    "The airlock cycle this time was a ritual of decontamination. Jets of pressurized solvent hissed over " +
+    "their chassis, scouring away radioactive dust and crystalline shards."
+  ])
 ]);
 assignParents(headingSample);
 
@@ -99,7 +101,7 @@ assert(
 const listSample = createElementNode("ul", [
   createElementNode("li", ["First item"]),
   createElementNode("li", ["Second item"]),
-  createElementNode("li", [createElementNode("strong", ["Bold detail"])]),
+  createElementNode("li", [createElementNode("strong", ["Bold detail"])])
 ]);
 assignParents(listSample);
 
@@ -112,8 +114,8 @@ const nestedSample = createElementNode("div", [
   createElementNode("p", [
     "Visit ",
     createElementNode("a", ["DeepSeek"], { href: "https://chat.deepseek.com" }),
-    " for more details.",
-  ]),
+    " for more details."
+  ])
 ]);
 assignParents(nestedSample);
 const nestedMarkdown = elementToMarkdown(nestedSample);
