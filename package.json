@@ -1,6 +1,6 @@
 {
   "name": "deepseek-chat-exporter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Chrome extension to export DeepSeek chat conversations to JSON or PDF",
   "main": "extension/content.js",
   "directories": {

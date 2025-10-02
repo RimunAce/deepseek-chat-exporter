@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "DeepSeek Chat Exporter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Export DeepSeek chat conversations",
-  "permissions": ["activeTab", "downloads"],
+  "permissions": ["activeTab"],
   "host_permissions": ["https://chat.deepseek.com/*"],
   "content_scripts": [
     {
