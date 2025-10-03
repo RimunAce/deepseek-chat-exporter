@@ -28,7 +28,10 @@
 
 
 ## Installation
-### 1. Source
+### 1. Chrome Web Store
+Install directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/deepseek-chat-exporter/jhdjinlgkeikjeifmdipdmnkpdnmjhdl?authuser=0&hl=en)
+
+### 2. Source
 1. Clone or download this repository
 2. Open Chrome and navigate to `chrome://extensions/`
 3. Enable "Developer mode" in the top right
