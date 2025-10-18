@@ -10,13 +10,15 @@ class DeepSeekExporter {
     this.isInitialized = false;
     this.chatData = {
       messages: [],
-      metadata: {}
+      metadata: {},
     };
     this.pdfExporterLoadPromise = null;
     this.markdownUtils =
       (typeof window.DeepSeekMarkdown !== "undefined" &&
         window.DeepSeekMarkdown) ||
       null;
+    this.mutationObserver = null;
+    this.currentUrl = window.location.href;
 
     // Initialize when DOM is ready
     if (document.readyState === "loading") {
@@ -33,6 +35,9 @@ class DeepSeekExporter {
 
     // Wait for the chat interface to load
     this.waitForChatInterface();
+
+    // Set up observers for SPA navigation
+    this.setupSPAObservers();
 
     this.isInitialized = true;
   }
@@ -56,14 +61,148 @@ class DeepSeekExporter {
     setTimeout(() => clearInterval(checkInterval), 30000);
   }
 
+  setupSPAObservers() {
+    // Monitor URL changes for SPA navigation
+    this.setupURLObserver();
+
+    // Monitor DOM changes to detect when input area is replaced
+    this.setupDOMObserver();
+  }
+
+  setupURLObserver() {
+    // Listen for URL changes (SPA navigation)
+    const checkURL = () => {
+      if (window.location.href !== this.currentUrl) {
+        console.log(
+          "DeepSeek Exporter: URL changed, checking for export button"
+        );
+        this.currentUrl = window.location.href;
+        this.handleNavigation();
+      }
+    };
+
+    // Check URL periodically since SPA navigation doesn't trigger popstate reliably
+    setInterval(checkURL, 1000);
+
+    // Also listen for popstate events
+    window.addEventListener("popstate", checkURL);
+  }
+
+  setupDOMObserver() {
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+    }
+
+    this.mutationObserver = new MutationObserver((mutations) => {
+      let shouldCheck = false;
+
+      for (const mutation of mutations) {
+        // Check if nodes were added or removed
+        if (
+          mutation.type === "childList" &&
+          (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
+        ) {
+          // Check if our export button was removed
+          for (const node of mutation.removedNodes) {
+            if (
+              node === this.exportButton ||
+              (node.nodeType === Node.ELEMENT_NODE &&
+                node.contains &&
+                node.contains(this.exportButton))
+            ) {
+              console.log(
+                "DeepSeek Exporter: Export button removed, will re-inject"
+              );
+              this.exportButton = null;
+              shouldCheck = true;
+              break;
+            }
+          }
+
+          // Check if input area was added
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const inputContainer = this.findInputContainerInNode(node);
+              if (inputContainer && !this.exportButton) {
+                console.log("DeepSeek Exporter: New input area detected");
+                shouldCheck = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (shouldCheck) {
+        setTimeout(() => this.handleNavigation(), 100);
+      }
+    });
+
+    // Observe the entire document for changes
+    this.mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  findInputContainerInNode(node) {
+    // Look for input containers within a specific node
+    const fileInput = node.querySelector
+      ? node.querySelector('input[type="file"][multiple]')
+      : null;
+    if (fileInput) {
+      const container =
+        fileInput.closest('[class*="ec4f5d61"]') ||
+        fileInput.closest("div").closest("div").closest("div");
+      if (container && this.isValidInputContainer(container)) {
+        return container;
+      }
+    }
+
+    const textarea = node.querySelector
+      ? node.querySelector('textarea[placeholder*="Message DeepSeek"]')
+      : null;
+    if (textarea) {
+      const container = textarea.closest("div").parentElement;
+      if (container && this.isValidInputContainer(container)) {
+        return container;
+      }
+    }
+
+    return null;
+  }
+
+  handleNavigation() {
+    console.log("DeepSeek Exporter: Handling navigation");
+
+    // Reset export button reference if it no longer exists
+    if (this.exportButton && !document.contains(this.exportButton)) {
+      this.exportButton = null;
+    }
+
+    // Check if we need to inject the export button
+    if (!this.exportButton) {
+      const inputContainer = this.findInputContainer();
+      if (inputContainer) {
+        console.log(
+          "DeepSeek Exporter: Re-injecting export button after navigation"
+        );
+        this.injectExportButton(inputContainer);
+      } else {
+        // If no input container found, wait for it
+        this.waitForChatInterface();
+      }
+    }
+  }
+
   findInputContainer() {
     // Look for the specific DeepSeek input structure based on our analysis
     // Priority 1: Look for the file input element and work backwards
-    const fileInput = document.querySelector("input[type=\"file\"][multiple]");
+    const fileInput = document.querySelector('input[type="file"][multiple]');
     if (fileInput) {
       // The file input is nested deep, we need the container that holds all the buttons
       const container =
-        fileInput.closest("[class*=\"ec4f5d61\"]") ||
+        fileInput.closest('[class*="ec4f5d61"]') ||
         fileInput.closest("div").closest("div").closest("div");
       if (container && this.isValidInputContainer(container)) {
         console.log(
@@ -76,7 +215,7 @@ class DeepSeekExporter {
 
     // Priority 2: Look for the textarea with "Message DeepSeek" placeholder
     const textarea = document.querySelector(
-      "textarea[placeholder*=\"Message DeepSeek\"]"
+      'textarea[placeholder*="Message DeepSeek"]'
     );
     if (textarea) {
       // Find the parent container that includes both textarea and buttons
@@ -107,10 +246,10 @@ class DeepSeekExporter {
 
     // Priority 4: Look for specific DeepSeek classes
     const selectors = [
-      "[class*=\"ec4f5d61\"]", // Button container class we saw in HTML
-      "[class*=\"bf38813a\"]", // Another button container class
-      "textarea[placeholder*=\"message\"]",
-      "div[contenteditable=\"true\"]"
+      '[class*="ec4f5d61"]', // Button container class we saw in HTML
+      '[class*="bf38813a"]', // Another button container class
+      'textarea[placeholder*="message"]',
+      'div[contenteditable="true"]',
     ];
 
     for (const selector of selectors) {
@@ -132,7 +271,7 @@ class DeepSeekExporter {
     // Fallback: look for the bottom-most interactive area
     const candidates = [
       ...document.querySelectorAll("input, textarea, [contenteditable]"),
-      ...document.querySelectorAll("button[role=\"button\"]")
+      ...document.querySelectorAll('button[role="button"]'),
     ];
 
     let bestCandidate = null;
@@ -234,8 +373,8 @@ class DeepSeekExporter {
     // Look for the container with class "bf38813a" or similar pattern that contains file upload buttons
     const buttonContainer =
       container.querySelector(".bf38813a") ||
-      container.querySelector("[class*=\"bf38813a\"]") ||
-      container.querySelector("div[class*=\"ec4f5d61\"] ~ div");
+      container.querySelector('[class*="bf38813a"]') ||
+      container.querySelector('div[class*="ec4f5d61"] ~ div');
 
     if (buttonContainer) {
       // Insert the export button at the beginning of the button container (before file upload)
@@ -245,7 +384,7 @@ class DeepSeekExporter {
       );
     } else {
       // Fallback: try to find the file upload button directly and insert before it
-      const fileUploadButton = container.querySelector("input[type=\"file\"]");
+      const fileUploadButton = container.querySelector('input[type="file"]');
       if (fileUploadButton && fileUploadButton.parentElement) {
         const fileButtonContainer = fileUploadButton.parentElement;
         // Insert our button before the file upload button container
@@ -345,10 +484,10 @@ class DeepSeekExporter {
 
   async startExport() {
     const format = this.modal.querySelector(
-      "input[name=\"format\"]:checked"
+      'input[name="format"]:checked'
     ).value;
     const messageFilter = this.modal.querySelector(
-      "input[name=\"messages\"]:checked"
+      'input[name="messages"]:checked'
     ).value;
     const includeThinking =
       this.modal.querySelector("#include-thinking").checked;
@@ -395,8 +534,8 @@ class DeepSeekExporter {
         exportDate: new Date().toISOString(),
         url: window.location.href,
         title: document.title,
-        chatId: this.extractChatId()
-      }
+        chatId: this.extractChatId(),
+      },
     };
 
     // Find message containers - based on the HTML structure we analyzed
@@ -404,14 +543,14 @@ class DeepSeekExporter {
       // DeepSeek specific classes from our analysis
       ".ds-message",
       ".d29f3d7d.ds-message", // Combined class we saw
-      "div[class*=\"fbb737a4\"]", // Message content class
-      "[class*=\"message\"]",
+      'div[class*="fbb737a4"]', // Message content class
+      '[class*="message"]',
       // Generic message patterns
-      "[role=\"article\"]",
+      '[role="article"]',
       "[data-message-id]",
       ".message",
       ".chat-message",
-      ".conversation-message"
+      ".conversation-message",
     ];
 
     let messages = [];
@@ -501,7 +640,7 @@ class DeepSeekExporter {
       content,
       timestamp: this.extractTimestamp(messageEl),
       hasThinking: Boolean(thinkingInfo),
-      thinkingContent: thinkingInfo ? thinkingInfo.fullText : null
+      thinkingContent: thinkingInfo ? thinkingInfo.fullText : null,
     };
   }
 
@@ -515,8 +654,8 @@ class DeepSeekExporter {
 
     // Data attributes occasionally mark user messages
     if (
-      element.matches("[data-role=\"user\"], [data-author=\"user\"]") ||
-      element.closest("[data-role=\"user\"], [data-author=\"user\"]")
+      element.matches('[data-role="user"], [data-author="user"]') ||
+      element.closest('[data-role="user"], [data-author="user"]')
     ) {
       return true;
     }
@@ -531,11 +670,11 @@ class DeepSeekExporter {
     const userIndicators = [
       userBubble,
       element.querySelector(
-        "[class*=\"avatar-user\"], [data-testid=\"user-avatar\"]"
+        '[class*="avatar-user"], [data-testid="user-avatar"]'
       ),
-      element.querySelector("[class*=\"icon-user\"]"),
+      element.querySelector('[class*="icon-user"]'),
       classList.some((cls) => cls.includes("human")),
-      text.length < 600
+      text.length < 600,
     ];
 
     const aiIndicators = [
@@ -545,7 +684,7 @@ class DeepSeekExporter {
         (cls) => cls.includes("assistant") || cls.includes("_7d763a7")
       ),
       text.startsWith("Thought for"),
-      text.length > 900
+      text.length > 900,
     ];
 
     const userScore = userIndicators.filter(Boolean).length;
@@ -570,8 +709,8 @@ class DeepSeekExporter {
   extractThinkingInfo(element) {
     // Try multiple selectors for thinking content containers
     const thinkingContainer = element.querySelector(
-      ".ds-think-content, [class*=\"think-content\"], [data-testid=\"think-content\"], " +
-        ".thinking-content, [class*=\"thinking\"], .thought-process"
+      '.ds-think-content, [class*="think-content"], [data-testid="think-content"], ' +
+        '.thinking-content, [class*="thinking"], .thought-process'
     );
 
     if (!thinkingContainer) {
@@ -598,7 +737,7 @@ class DeepSeekExporter {
             return {
               header: "Thinking Process",
               body: text,
-              fullText: `Thinking Process\n\n${text}`
+              fullText: `Thinking Process\n\n${text}`,
             };
           }
         }
@@ -609,10 +748,10 @@ class DeepSeekExporter {
     // Try multiple selectors for thinking headers
     const headerEl =
       element.querySelector("span._5255ff8") ||
-      element.querySelector("[class*=\"think-title\"]") ||
-      element.querySelector("[class*=\"thought-title\"]") ||
+      element.querySelector('[class*="think-title"]') ||
+      element.querySelector('[class*="thought-title"]') ||
       element.querySelector(".thinking-header") ||
-      element.querySelector("[class*=\"thinking-header\"]");
+      element.querySelector('[class*="thinking-header"]');
 
     const headerText = headerEl
       ? headerEl.textContent.trim()
@@ -634,7 +773,7 @@ class DeepSeekExporter {
     return {
       header: headerText,
       body: bodyText,
-      fullText: `${headerText}\n\n${bodyText}`
+      fullText: `${headerText}\n\n${bodyText}`,
     };
   }
 
@@ -676,10 +815,10 @@ class DeepSeekExporter {
     const fallbackClone = element.cloneNode(true);
     const selectorsToRemove = [
       ".ds-think-content",
-      "[class*=\"think-content\"]",
-      "[data-testid=\"think-content\"]",
-      "[class*=\"thinking\"]",
-      "[class*=\"thought\"]"
+      '[class*="think-content"]',
+      '[data-testid="think-content"]',
+      '[class*="thinking"]',
+      '[class*="thought"]',
     ];
 
     selectorsToRemove.forEach((selector) => {
@@ -693,9 +832,9 @@ class DeepSeekExporter {
     // Look for timestamp elements
     const timeSelectors = [
       "time",
-      "[class*=\"timestamp\"]",
-      "[class*=\"time\"]",
-      "[datetime]"
+      '[class*="timestamp"]',
+      '[class*="time"]',
+      "[datetime]",
     ];
 
     for (const selector of timeSelectors) {
@@ -738,7 +877,7 @@ class DeepSeekExporter {
       filteredData.messages = filteredData.messages.map((msg) => ({
         ...msg,
         hasThinking: false,
-        thinkingContent: null
+        thinkingContent: null,
       }));
     }
 
@@ -828,19 +967,15 @@ class DeepSeekExporter {
 
       window.addEventListener("deepseek-exporter:ready", onReady, {
         once: true,
-        capture: true
+        capture: true,
       });
-      window.addEventListener(
-        "deepseek-exporter:load-error",
-        onError,
-        {
-          once: true,
-          capture: true
-        }
-      );
+      window.addEventListener("deepseek-exporter:load-error", onError, {
+        once: true,
+        capture: true,
+      });
 
       const existingScript = document.querySelector(
-        "script[data-deepseek-pdf-exporter=\"true\"]"
+        'script[data-deepseek-pdf-exporter="true"]'
       );
 
       const currentStatus = document.documentElement.getAttribute(
@@ -926,18 +1061,35 @@ class DeepSeekExporter {
       }, 30000);
 
       window.addEventListener("deepseek-exporter:pdf-success", onSuccess, {
-        capture: true
+        capture: true,
       });
       window.addEventListener("deepseek-exporter:pdf-error", onError, {
-        capture: true
+        capture: true,
       });
 
       window.dispatchEvent(
         new CustomEvent("deepseek-exporter:generate-pdf", {
-          detail: { id: requestId, data }
+          detail: { id: requestId, data },
         })
       );
     });
+  }
+
+  cleanup() {
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+      this.mutationObserver = null;
+    }
+
+    if (this.exportButton) {
+      this.exportButton.remove();
+      this.exportButton = null;
+    }
+
+    if (this.modal) {
+      this.modal.remove();
+      this.modal = null;
+    }
   }
 }
 
