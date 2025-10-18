@@ -17,6 +17,12 @@ class DeepSeekExporter {
       (typeof window.DeepSeekMarkdown !== "undefined" &&
         window.DeepSeekMarkdown) ||
       null;
+    this.mutationObserver = null;
+    this.currentUrl = window.location.href;
+    this.urlCheckInterval = null;
+    this.popstateHandler = null;
+    this.unloadHandler = null;
+    this.messageHandler = null;
 
     // Initialize when DOM is ready
     if (document.readyState === "loading") {
@@ -34,6 +40,12 @@ class DeepSeekExporter {
     // Wait for the chat interface to load
     this.waitForChatInterface();
 
+    // Set up observers for SPA navigation
+    this.setupSPAObservers();
+
+    // Set up runtime handlers
+    this.setupRuntimeHandlers();
+
     this.isInitialized = true;
   }
 
@@ -44,9 +56,6 @@ class DeepSeekExporter {
       const inputContainer = this.findInputContainer();
 
       if (inputContainer && !this.exportButton) {
-        console.log(
-          "DeepSeek Exporter: Chat interface found, injecting export button"
-        );
         this.injectExportButton(inputContainer);
         clearInterval(checkInterval);
       }
@@ -54,6 +63,173 @@ class DeepSeekExporter {
 
     // Stop checking after 30 seconds
     setTimeout(() => clearInterval(checkInterval), 30000);
+  }
+
+  setupSPAObservers() {
+    // Monitor URL changes for SPA navigation
+    this.setupURLObserver();
+
+    // Monitor DOM changes to detect when input area is replaced
+    this.setupDOMObserver();
+  }
+
+  setupURLObserver() {
+    // Listen for URL changes (SPA navigation)
+    this.popstateHandler = () => {
+      if (window.location.href !== this.currentUrl) {
+        this.currentUrl = window.location.href;
+        this.handleNavigation();
+      }
+    };
+
+    // Check URL periodically since SPA navigation doesn't trigger popstate reliably
+    this.urlCheckInterval = setInterval(this.popstateHandler, 1000);
+
+    // Also listen for popstate events
+    window.addEventListener("popstate", this.popstateHandler);
+  }
+
+  setupDOMObserver() {
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+    }
+
+    this.mutationObserver = new MutationObserver((mutations) => {
+      let buttonRemoved = false;
+      let inputAreaAdded = false;
+
+      for (const mutation of mutations) {
+        // Check if nodes were added or removed
+        if (
+          mutation.type === "childList" &&
+          (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
+        ) {
+          // Check if our export button was removed
+          for (const node of mutation.removedNodes) {
+            if (
+              node === this.exportButton ||
+              (node.nodeType === Node.ELEMENT_NODE &&
+                node.contains &&
+                node.contains(this.exportButton))
+            ) {
+              this.exportButton = null;
+              buttonRemoved = true;
+              break;
+            }
+          }
+
+          // Check if input area was added
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const inputContainer = this.findInputContainerInNode(node);
+              if (inputContainer && !this.exportButton) {
+                inputAreaAdded = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (buttonRemoved || inputAreaAdded) {
+        setTimeout(() => this.reinjectButton(), 100);
+      }
+    });
+
+    // Observe the entire document for changes
+    this.mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  reinjectButton() {
+    // Re-inject button without full cleanup (used by mutation observer)
+    if (!this.exportButton && this.isChatPage()) {
+      const inputContainer = this.findInputContainer();
+      if (inputContainer) {
+        this.injectExportButton(inputContainer);
+      }
+    }
+  }
+
+  setupRuntimeHandlers() {
+    // Set up unload handler to cleanup when page/extension unloads
+    this.unloadHandler = () => {
+      this.cleanup();
+    };
+    window.addEventListener("unload", this.unloadHandler);
+
+    // Set up chrome.runtime.onSuspend if available (for extension suspend)
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.onSuspend
+    ) {
+      chrome.runtime.onSuspend.addListener(this.unloadHandler);
+    }
+
+    // Set up message listener for manual cleanup command
+    this.messageHandler = (message, sender, sendResponse) => {
+      if (message && message.action === "cleanup") {
+        this.cleanup();
+        sendResponse({ success: true });
+        return true;
+      }
+    };
+
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.onMessage
+    ) {
+      chrome.runtime.onMessage.addListener(this.messageHandler);
+    }
+  }
+
+  findInputContainerInNode(node) {
+    // Look for input containers within a specific node
+    const fileInput = node.querySelector
+      ? node.querySelector("input[type=\"file\"][multiple]")
+      : null;
+    if (fileInput) {
+      const container =
+        fileInput.closest("[class*=\"ec4f5d61\"]") ||
+        fileInput.closest("div").closest("div").closest("div");
+      if (container && this.isValidInputContainer(container)) {
+        return container;
+      }
+    }
+
+    const textarea = node.querySelector
+      ? node.querySelector("textarea[placeholder*=\"Message DeepSeek\"]")
+      : null;
+    if (textarea) {
+      const container = textarea.closest("div").parentElement;
+      if (container && this.isValidInputContainer(container)) {
+        return container;
+      }
+    }
+
+    return null;
+  }
+
+  handleNavigation() {
+    // Clean up existing observers and DOM nodes before re-initializing
+    this.cleanup();
+
+    // Check if we need to inject the export button
+    const inputContainer = this.findInputContainer();
+    if (inputContainer) {
+      this.injectExportButton(inputContainer);
+    } else if (this.isChatPage()) {
+      // If no input container found, wait for it (only on chat pages)
+      this.waitForChatInterface();
+    }
+  }
+
+  isChatPage() {
+    return window.location.pathname.includes("/chat");
   }
 
   findInputContainer() {
@@ -66,10 +242,6 @@ class DeepSeekExporter {
         fileInput.closest("[class*=\"ec4f5d61\"]") ||
         fileInput.closest("div").closest("div").closest("div");
       if (container && this.isValidInputContainer(container)) {
-        console.log(
-          "DeepSeek Exporter: Found input container via file input",
-          container
-        );
         return container;
       }
     }
@@ -82,10 +254,6 @@ class DeepSeekExporter {
       // Find the parent container that includes both textarea and buttons
       const container = textarea.closest("div").parentElement;
       if (container && this.isValidInputContainer(container)) {
-        console.log(
-          "DeepSeek Exporter: Found input container via textarea",
-          container
-        );
         return container;
       }
     }
@@ -97,18 +265,14 @@ class DeepSeekExporter {
     if (deepThinkButton) {
       const container = deepThinkButton.closest("div").parentElement;
       if (container && this.isValidInputContainer(container)) {
-        console.log(
-          "DeepSeek Exporter: Found input container via DeepThink button",
-          container
-        );
         return container;
       }
     }
 
     // Priority 4: Look for specific DeepSeek classes
     const selectors = [
-      "[class*=\"ec4f5d61\"]", // Button container class we saw in HTML
-      "[class*=\"bf38813a\"]", // Another button container class
+      "[class*=\"ec4f5d61\"]",
+      "[class*=\"bf38813a\"]",
       "textarea[placeholder*=\"message\"]",
       "div[contenteditable=\"true\"]"
     ];
@@ -119,11 +283,6 @@ class DeepSeekExporter {
         const container =
           element.closest("div").parentElement || element.parentElement;
         if (container && this.isValidInputContainer(container)) {
-          console.log(
-            "DeepSeek Exporter: Found input container via selector",
-            selector,
-            container
-          );
           return container;
         }
       }
@@ -258,8 +417,6 @@ class DeepSeekExporter {
         container.appendChild(this.exportButton);
       }
     }
-
-    console.log("DeepSeek Exporter: Export button injected successfully");
   }
 
   showExportModal() {
@@ -830,14 +987,10 @@ class DeepSeekExporter {
         once: true,
         capture: true
       });
-      window.addEventListener(
-        "deepseek-exporter:load-error",
-        onError,
-        {
-          once: true,
-          capture: true
-        }
-      );
+      window.addEventListener("deepseek-exporter:load-error", onError, {
+        once: true,
+        capture: true
+      });
 
       const existingScript = document.querySelector(
         "script[data-deepseek-pdf-exporter=\"true\"]"
@@ -938,6 +1091,78 @@ class DeepSeekExporter {
         })
       );
     });
+  }
+
+  cleanup() {
+    // Disconnect mutation observer
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+      this.mutationObserver = null;
+    }
+
+    // Clear URL check interval
+    if (this.urlCheckInterval) {
+      clearInterval(this.urlCheckInterval);
+      this.urlCheckInterval = null;
+    }
+
+    // Remove popstate event listener
+    if (this.popstateHandler) {
+      window.removeEventListener("popstate", this.popstateHandler);
+      this.popstateHandler = null;
+    }
+
+    // Remove unload event listener
+    if (this.unloadHandler) {
+      window.removeEventListener("unload", this.unloadHandler);
+
+      // Remove from chrome.runtime.onSuspend if available
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.runtime &&
+        chrome.runtime.onSuspend
+      ) {
+        try {
+          chrome.runtime.onSuspend.removeListener(this.unloadHandler);
+        } catch (e) {
+          // Listener may not exist, ignore
+        }
+      }
+
+      this.unloadHandler = null;
+    }
+
+    // Remove message listener
+    if (this.messageHandler) {
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.runtime &&
+        chrome.runtime.onMessage
+      ) {
+        try {
+          chrome.runtime.onMessage.removeListener(this.messageHandler);
+        } catch (e) {
+          // Listener may not exist, ignore
+        }
+      }
+      this.messageHandler = null;
+    }
+
+    // Remove export button from DOM
+    if (this.exportButton) {
+      if (document.contains(this.exportButton)) {
+        this.exportButton.remove();
+      }
+      this.exportButton = null;
+    }
+
+    // Remove modal from DOM
+    if (this.modal) {
+      if (document.contains(this.modal)) {
+        this.modal.remove();
+      }
+      this.modal = null;
+    }
   }
 }
 

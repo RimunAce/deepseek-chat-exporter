@@ -1,6 +1,6 @@
 {
   "name": "deepseek-chat-exporter",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A Chrome extension to export DeepSeek chat conversations to JSON or PDF",
   "main": "extension/content.js",
   "directories": {
@@ -11,6 +11,8 @@
     "test:unit": "node tests/unit/markdown-utils.test.js",
     "test:integration": "node tests/integration/pdf-export.test.js",
     "lint": "eslint extension/ tests/",
+    "lint:extension": "eslint extension/",
+    "lint:tests": "eslint tests/",
     "lint:fix": "eslint extension/ tests/ --fix",
     "validate": "node tools/validation/browser-validation.js"
   },
