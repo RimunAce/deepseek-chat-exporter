@@ -19,6 +19,10 @@ class DeepSeekExporter {
       null;
     this.mutationObserver = null;
     this.currentUrl = window.location.href;
+    this.urlCheckInterval = null;
+    this.popstateHandler = null;
+    this.unloadHandler = null;
+    this.messageHandler = null;
 
     // Initialize when DOM is ready
     if (document.readyState === "loading") {
@@ -38,6 +42,9 @@ class DeepSeekExporter {
 
     // Set up observers for SPA navigation
     this.setupSPAObservers();
+
+    // Set up runtime handlers
+    this.setupRuntimeHandlers();
 
     this.isInitialized = true;
   }
@@ -71,7 +78,7 @@ class DeepSeekExporter {
 
   setupURLObserver() {
     // Listen for URL changes (SPA navigation)
-    const checkURL = () => {
+    this.popstateHandler = () => {
       if (window.location.href !== this.currentUrl) {
         console.log(
           "DeepSeek Exporter: URL changed, checking for export button"
@@ -82,10 +89,10 @@ class DeepSeekExporter {
     };
 
     // Check URL periodically since SPA navigation doesn't trigger popstate reliably
-    setInterval(checkURL, 1000);
+    this.urlCheckInterval = setInterval(this.popstateHandler, 1000);
 
     // Also listen for popstate events
-    window.addEventListener("popstate", checkURL);
+    window.addEventListener("popstate", this.popstateHandler);
   }
 
   setupDOMObserver() {
@@ -145,6 +152,42 @@ class DeepSeekExporter {
     });
   }
 
+  setupRuntimeHandlers() {
+    // Set up unload handler to cleanup when page/extension unloads
+    this.unloadHandler = () => {
+      console.log("DeepSeek Exporter: Page unloading, cleaning up...");
+      this.cleanup();
+    };
+    window.addEventListener("unload", this.unloadHandler);
+
+    // Set up chrome.runtime.onSuspend if available (for extension suspend)
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.onSuspend
+    ) {
+      chrome.runtime.onSuspend.addListener(this.unloadHandler);
+    }
+
+    // Set up message listener for manual cleanup command
+    this.messageHandler = (message, sender, sendResponse) => {
+      if (message && message.action === "cleanup") {
+        console.log("DeepSeek Exporter: Manual cleanup requested");
+        this.cleanup();
+        sendResponse({ success: true });
+        return true;
+      }
+    };
+
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.onMessage
+    ) {
+      chrome.runtime.onMessage.addListener(this.messageHandler);
+    }
+  }
+
   findInputContainerInNode(node) {
     // Look for input containers within a specific node
     const fileInput = node.querySelector
@@ -175,23 +218,19 @@ class DeepSeekExporter {
   handleNavigation() {
     console.log("DeepSeek Exporter: Handling navigation");
 
-    // Reset export button reference if it no longer exists
-    if (this.exportButton && !document.contains(this.exportButton)) {
-      this.exportButton = null;
-    }
+    // Clean up existing observers and DOM nodes before re-initializing
+    this.cleanup();
 
     // Check if we need to inject the export button
-    if (!this.exportButton) {
-      const inputContainer = this.findInputContainer();
-      if (inputContainer) {
-        console.log(
-          "DeepSeek Exporter: Re-injecting export button after navigation"
-        );
-        this.injectExportButton(inputContainer);
-      } else {
-        // If no input container found, wait for it
-        this.waitForChatInterface();
-      }
+    const inputContainer = this.findInputContainer();
+    if (inputContainer) {
+      console.log(
+        "DeepSeek Exporter: Re-injecting export button after navigation"
+      );
+      this.injectExportButton(inputContainer);
+    } else {
+      // If no input container found, wait for it
+      this.waitForChatInterface();
     }
   }
 
@@ -1076,20 +1115,77 @@ class DeepSeekExporter {
   }
 
   cleanup() {
+    // Disconnect mutation observer
     if (this.mutationObserver) {
       this.mutationObserver.disconnect();
       this.mutationObserver = null;
     }
 
+    // Clear URL check interval
+    if (this.urlCheckInterval) {
+      clearInterval(this.urlCheckInterval);
+      this.urlCheckInterval = null;
+    }
+
+    // Remove popstate event listener
+    if (this.popstateHandler) {
+      window.removeEventListener("popstate", this.popstateHandler);
+      this.popstateHandler = null;
+    }
+
+    // Remove unload event listener
+    if (this.unloadHandler) {
+      window.removeEventListener("unload", this.unloadHandler);
+
+      // Remove from chrome.runtime.onSuspend if available
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.runtime &&
+        chrome.runtime.onSuspend
+      ) {
+        try {
+          chrome.runtime.onSuspend.removeListener(this.unloadHandler);
+        } catch (e) {
+          // Listener may not exist, ignore
+        }
+      }
+
+      this.unloadHandler = null;
+    }
+
+    // Remove message listener
+    if (this.messageHandler) {
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.runtime &&
+        chrome.runtime.onMessage
+      ) {
+        try {
+          chrome.runtime.onMessage.removeListener(this.messageHandler);
+        } catch (e) {
+          // Listener may not exist, ignore
+        }
+      }
+      this.messageHandler = null;
+    }
+
+    // Remove export button from DOM
     if (this.exportButton) {
-      this.exportButton.remove();
+      if (document.contains(this.exportButton)) {
+        this.exportButton.remove();
+      }
       this.exportButton = null;
     }
 
+    // Remove modal from DOM
     if (this.modal) {
-      this.modal.remove();
+      if (document.contains(this.modal)) {
+        this.modal.remove();
+      }
       this.modal = null;
     }
+
+    console.log("DeepSeek Exporter: Cleanup completed");
   }
 }
 
