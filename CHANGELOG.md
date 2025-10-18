@@ -1,6 +1,6 @@
 ## deepseek-chat-exporter
 
-## [1.0.3] - 2025-01-27
+## [1.0.3] - 2025-10-18
 
 - Fixed export button disappearing during SPA navigation
 
