@@ -56,9 +56,6 @@ class DeepSeekExporter {
       const inputContainer = this.findInputContainer();
 
       if (inputContainer && !this.exportButton) {
-        console.log(
-          "DeepSeek Exporter: Chat interface found, injecting export button"
-        );
         this.injectExportButton(inputContainer);
         clearInterval(checkInterval);
       }
@@ -80,9 +77,6 @@ class DeepSeekExporter {
     // Listen for URL changes (SPA navigation)
     this.popstateHandler = () => {
       if (window.location.href !== this.currentUrl) {
-        console.log(
-          "DeepSeek Exporter: URL changed, checking for export button"
-        );
         this.currentUrl = window.location.href;
         this.handleNavigation();
       }
@@ -101,7 +95,8 @@ class DeepSeekExporter {
     }
 
     this.mutationObserver = new MutationObserver((mutations) => {
-      let shouldCheck = false;
+      let buttonRemoved = false;
+      let inputAreaAdded = false;
 
       for (const mutation of mutations) {
         // Check if nodes were added or removed
@@ -117,11 +112,8 @@ class DeepSeekExporter {
                 node.contains &&
                 node.contains(this.exportButton))
             ) {
-              console.log(
-                "DeepSeek Exporter: Export button removed, will re-inject"
-              );
               this.exportButton = null;
-              shouldCheck = true;
+              buttonRemoved = true;
               break;
             }
           }
@@ -131,8 +123,7 @@ class DeepSeekExporter {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const inputContainer = this.findInputContainerInNode(node);
               if (inputContainer && !this.exportButton) {
-                console.log("DeepSeek Exporter: New input area detected");
-                shouldCheck = true;
+                inputAreaAdded = true;
                 break;
               }
             }
@@ -140,8 +131,8 @@ class DeepSeekExporter {
         }
       }
 
-      if (shouldCheck) {
-        setTimeout(() => this.handleNavigation(), 100);
+      if (buttonRemoved || inputAreaAdded) {
+        setTimeout(() => this.reinjectButton(), 100);
       }
     });
 
@@ -152,10 +143,19 @@ class DeepSeekExporter {
     });
   }
 
+  reinjectButton() {
+    // Re-inject button without full cleanup (used by mutation observer)
+    if (!this.exportButton && this.isChatPage()) {
+      const inputContainer = this.findInputContainer();
+      if (inputContainer) {
+        this.injectExportButton(inputContainer);
+      }
+    }
+  }
+
   setupRuntimeHandlers() {
     // Set up unload handler to cleanup when page/extension unloads
     this.unloadHandler = () => {
-      console.log("DeepSeek Exporter: Page unloading, cleaning up...");
       this.cleanup();
     };
     window.addEventListener("unload", this.unloadHandler);
@@ -172,7 +172,6 @@ class DeepSeekExporter {
     // Set up message listener for manual cleanup command
     this.messageHandler = (message, sender, sendResponse) => {
       if (message && message.action === "cleanup") {
-        console.log("DeepSeek Exporter: Manual cleanup requested");
         this.cleanup();
         sendResponse({ success: true });
         return true;
@@ -216,22 +215,21 @@ class DeepSeekExporter {
   }
 
   handleNavigation() {
-    console.log("DeepSeek Exporter: Handling navigation");
-
     // Clean up existing observers and DOM nodes before re-initializing
     this.cleanup();
 
     // Check if we need to inject the export button
     const inputContainer = this.findInputContainer();
     if (inputContainer) {
-      console.log(
-        "DeepSeek Exporter: Re-injecting export button after navigation"
-      );
       this.injectExportButton(inputContainer);
-    } else {
-      // If no input container found, wait for it
+    } else if (this.isChatPage()) {
+      // If no input container found, wait for it (only on chat pages)
       this.waitForChatInterface();
     }
+  }
+
+  isChatPage() {
+    return window.location.pathname.includes("/chat");
   }
 
   findInputContainer() {
@@ -244,10 +242,6 @@ class DeepSeekExporter {
         fileInput.closest("[class*=\"ec4f5d61\"]") ||
         fileInput.closest("div").closest("div").closest("div");
       if (container && this.isValidInputContainer(container)) {
-        console.log(
-          "DeepSeek Exporter: Found input container via file input",
-          container
-        );
         return container;
       }
     }
@@ -260,10 +254,6 @@ class DeepSeekExporter {
       // Find the parent container that includes both textarea and buttons
       const container = textarea.closest("div").parentElement;
       if (container && this.isValidInputContainer(container)) {
-        console.log(
-          "DeepSeek Exporter: Found input container via textarea",
-          container
-        );
         return container;
       }
     }
@@ -275,18 +265,14 @@ class DeepSeekExporter {
     if (deepThinkButton) {
       const container = deepThinkButton.closest("div").parentElement;
       if (container && this.isValidInputContainer(container)) {
-        console.log(
-          "DeepSeek Exporter: Found input container via DeepThink button",
-          container
-        );
         return container;
       }
     }
 
     // Priority 4: Look for specific DeepSeek classes
     const selectors = [
-      "[class*=\"ec4f5d61\"]", // Button container class we saw in HTML
-      "[class*=\"bf38813a\"]", // Another button container class
+      "[class*=\"ec4f5d61\"]",
+      "[class*=\"bf38813a\"]",
       "textarea[placeholder*=\"message\"]",
       "div[contenteditable=\"true\"]"
     ];
@@ -297,11 +283,6 @@ class DeepSeekExporter {
         const container =
           element.closest("div").parentElement || element.parentElement;
         if (container && this.isValidInputContainer(container)) {
-          console.log(
-            "DeepSeek Exporter: Found input container via selector",
-            selector,
-            container
-          );
           return container;
         }
       }
@@ -436,8 +417,6 @@ class DeepSeekExporter {
         container.appendChild(this.exportButton);
       }
     }
-
-    console.log("DeepSeek Exporter: Export button injected successfully");
   }
 
   showExportModal() {
@@ -1184,8 +1163,6 @@ class DeepSeekExporter {
       }
       this.modal = null;
     }
-
-    console.log("DeepSeek Exporter: Cleanup completed");
   }
 }
 
